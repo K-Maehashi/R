@@ -77,8 +77,8 @@ data{
   int<lower=1> K;
   int<lower=1> M;
   matrix[N, M] covariates;
-	int<lower=0, upper=1> treatment[N];
-	matrix[1,M] mean_cov;
+  int<lower=0, upper=1> treatment[N];
+  matrix[1,M] mean_cov;
   int<lower=1,upper=K> Y[N];
 }
 parameters{
