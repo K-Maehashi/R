@@ -75,15 +75,15 @@ model <- "
 data{
   int<lower=0> N;
   int<lower=1> K;
-  int<lower=1> M;
+  int<lower=1> M; //number of covariates
   matrix[N, M] covariates;
-	int<lower=0, upper=1> treatment[N];
-	matrix[1,M] mean_cov;
+  int<lower=0, upper=1> treatment[N];
+  matrix[1,M] mean_cov;
   int age[N];
   int<lower=1,upper=K> Y[N];
 }
 parameters{
-  vector[M] betaX; // beta for covariates
+  vector[M] betaX; // betas for covariates
   real beta; // beta for treatment
   ordered[K-1] c;
 }
