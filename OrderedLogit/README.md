@@ -1,0 +1,1 @@
+# Ordered Logit in Stan
