@@ -7,8 +7,8 @@
 選択肢1:<br>
 <img src="Y1.png" width="580">
 <br><br>
-選択肢3:<br>
-<img src="Y3.png" width="580">
+選択肢5:<br>
+<img src="Y2.png" width="580">
 <br><br>
 選択肢5:<br>
 <img src="Y5.png" width="580">
