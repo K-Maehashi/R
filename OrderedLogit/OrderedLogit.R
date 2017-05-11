@@ -7,54 +7,35 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 # Generate Data
-num_data = 2000
-age <- sample(20:50, num_data, replace=T)
+	# Remember the shape of distribution (fat middle) and each stratum should have enough number of observations.
+num_data <- 1000
+
+age <- runif(num_data, min=2, max=5)
 gender <- sample(0:1, num_data, replace=T)
+income <- runif(num_data, min=2, max=8)
 treatment <- sample(0:1, num_data, replace=T)
-data <- data.frame(age, gender, treatment)
+data <- data.frame(age, gender, income, treatment)
+covariates <- as.matrix(data[,c("age", "gender", "income")]) # be careful with the order (should be consistent throughout the analysis)
 
-baseprob <- c(1,5,2,1.5,1)
 
-genderboost_fun <- function(x){
-  if (x==0){# Male
-    return (c(1,1,1,1,1))
-  }
-  return (c(0.97,1.02,1,1.02,0.98))
+makeY <- function(x){
+	if(x < 14.5)
+		return (1)
+	if(x <18)
+		return (2)
+	if(x <23)
+		return (3)
+	return (4)
 }
 
-treatmentboost <- c(0.5,0.3,1,1.5,3.8)
-
-ageboost_fun <- function(x){
-  if(x < 35){
-    return (c(1,1,1,1,1))
-  }
-  if(x<45){
-    return (c(0.98,0.98,1,1.02,1.03))
-  }
-  return (c(0.99,1.02,1,1.03,1.02))
-}
-
-makeout <- function(x){
-  ageboost <- ageboost_fun(x[1])
-  genderboost <- genderboost_fun(x[2])
-  if(x[3]==0){# Control
-   prob <- baseprob * ageboost * genderboost 
-   prob <- prob / sum(prob)
-   Y <- sample(1:5, 1, replace=T, prob)
-   return (Y)
-  }
-  if(x[3]==1){# Treated
-   prob <- baseprob * ageboost * genderboost * treatmentboost
-   prob <- prob / sum(prob)
-   Y <- sample(1:5, 1, replace=T, prob)
-   return (Y)
-  }
-}
-
-data$Y <- apply(data, 1, makeout)
-
-# Analysis
-covariates <- as.matrix(data[,c("gender", "age")])
+beta_ <- 2
+betaX <- c(2.8, -1, 1.68)
+l <- beta_ * treatment + covariates %*% betaX + rlogis(num_data, scale=1)
+data$Y <- apply(l, 1, makeY)
+summary(l)
+table(data$Y, data$treatment)
+plot(factor(data$Y)[data$treatment==0], l[data$treatment==0])
+plot(factor(data$Y)[data$treatment==1], l[data$treatment==1])
 
 #data %>%
 #	dplyr::select_('-treatment') %>%
@@ -62,11 +43,14 @@ covariates <- as.matrix(data[,c("gender", "age")])
 #	summarise_each(funs(mean)) %>%
 #	dplyr::select_('-Y') %>%
 #	as.matrix() -> mean_covariates
+
+# Analysis
+
 data %>% summarise_each(funs(mean)) %>%
 	dplyr::select_('-Y', '-treatment') -> mean_covariates
 
 
-stan_data <- list(N=nrow(data), K=5, M=2, mean_cov=mean_covariates,
+stan_data <- list(N=nrow(data), K=4, M=3, mean_cov=mean_covariates,
                   treatment=data$treatment,
                   covariates=covariates,
                   Y=data$Y)
@@ -97,11 +81,14 @@ generated quantities{
 	real C1; // category 1 in control group
 	real T2;
 	real C2;
-	real T5;
-	real C5;
+	real T3;
+	real C3;
+	real T4;
+	real C4;
 	real diff1;
 	real diff2;
-	real diff5;
+	real diff3;
+	real diff4;
 
 	T1 = 1 - inv_logit(mean_cov[1,] * betaX + beta*1 - c[1]);
 	C1 = 1 - inv_logit(mean_cov[1,] * betaX + beta*0 - c[1]);
@@ -111,9 +98,13 @@ generated quantities{
 	C2 = inv_logit(mean_cov[1,] * betaX + beta*0 - c[1]) - inv_logit(mean_cov[1,] * betaX + beta*0 - c[2]);
 	diff2 = T2 - C2;
 
-	T5 =  inv_logit(mean_cov[1,] * betaX + beta*1 - c[4]);
-	C5 =  inv_logit(mean_cov[1,] * betaX + beta*0 - c[4]);
-	diff5 = T5 - C5;
+	T3 = inv_logit(mean_cov[1,] * betaX + beta*1 - c[2]) - inv_logit(mean_cov[1,] * betaX + beta*1 - c[3]);
+	C3 = inv_logit(mean_cov[1,] * betaX + beta*0 - c[2]) - inv_logit(mean_cov[1,] * betaX + beta*0 - c[3]);
+	diff3 = T3 - C3;
+
+	T4 =  inv_logit(mean_cov[1,] * betaX + beta*1 - c[3]);
+	C4 =  inv_logit(mean_cov[1,] * betaX + beta*0 - c[3]);
+	diff4 = T4 - C4;
 
 }
 "
@@ -127,17 +118,26 @@ mcmc_areas(posterior,
            pars = c("T1", "C1", "diff1"), 
            prob = 0.95)
 
-posterior <- as.matrix(result)
 mcmc_areas(posterior, 
            pars = c("T2", "C2", "diff2"), 
            prob = 0.95)
 
-posterior <- as.matrix(result)
 mcmc_areas(posterior, 
-           pars = c("T5", "C5", "diff5"), 
+           pars = c("T3", "C3", "diff3"), 
            prob = 0.95)
 
+mcmc_areas(posterior, 
+           pars = c("T4", "C4", "diff4"), 
+           prob = 0.95)
+
+mcmc_areas(posterior, 
+           pars = c("beta", "betaX[1]", "betaX[2]", "betaX[3]"), 
+           prob = 0.95)
+
+mcmc_areas(posterior, 
+           pars = c("c[1]", "c[2]", "c[3]"), 
+           prob = 0.95)
 
 ## MASS Ordered Logit
-res <- polr(as.factor(Y)~treatment+age+gender, data=data, Hess=T)
+res <- polr(as.factor(Y)~treatment+age+gender+income, data=data, Hess=T)
 summary(res)
