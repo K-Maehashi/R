@@ -1,7 +1,7 @@
 # Ordered Logit in Stan
 
 ## データ
-順序ロジットデータ生成過程に基づき生成。
+順序ロジットのデータ生成過程に基づき擬似データを作成。
 ```r
 > table(data$Y, data$treatment)   
       0   1
