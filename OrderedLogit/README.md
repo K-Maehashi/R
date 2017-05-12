@@ -1,4 +1,5 @@
 # Ordered Logit in Stan
+修正済み。前バージョンは[こちら](https://github.com/K-Maehashi/R/blob/master/OrderedLogit/README_Old.md)。
 
 ## データ
 順序ロジットのデータ生成過程に基づき擬似データを作成。
